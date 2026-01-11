@@ -5,11 +5,9 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-DEV_NAME = "RACK FF YT"
-
 @app.route('/')
 def home():
-    return f"<body style='background:#000;color:#0f0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;'><h1>{DEV_NAME} API IS ONLINE</h1></body>"
+    return "<h1>RACK FF YT API IS ONLINE</h1>"
 
 @app.route('/download')
 def download():
@@ -19,42 +17,31 @@ def download():
     
     try:
         # Cobalt API Request
-        response = requests.post(
-            "https://api.cobalt.tools/api/json",
-            headers={"Accept": "application/json", "Content-Type": "application/json"},
-            json={"url": video_url, "videoQuality": "720"}
-        )
+        payload = {
+            "url": video_url,
+            "videoQuality": "720",
+            "audioFormat": "mp3",
+            "downloadMode": "default"
+        }
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
         
-        data = response.json()
+        r = requests.post("https://api.cobalt.tools/api/json", json=payload, headers=headers)
+        data = r.json()
         
-        # Cobalt returns 'url' directly if it's a single video
-        # or 'picker' if there are multiple options
-        final_link = data.get('url') or (data.get('picker')[0].get('url') if data.get('picker') else None)
-
-        if final_link:
+        # Checking for the download link
+        final_url = data.get('url')
+        
+        if final_url:
             return jsonify({
                 "success": True,
-                "video_url": final_link,
-                "owner": DEV_NAME
+                "video_url": final_url,
+                "owner": "RACK FF YT"
             })
         else:
-            return jsonify({"success": False, "error": "Link extraction failed"}), 500
+            return jsonify({"success": False, "error": "Could not find stream URL", "details": data}), 400
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
-# Required for Vercel
-app.debug = True    
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
-            return jsonify({
-                "success": True, 
-                "video_url": info.get('url'),
-                "title": info.get('title'),
-                "owner": DEV_NAME
-            })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-app.debug = True
