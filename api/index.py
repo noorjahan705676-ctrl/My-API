@@ -7,7 +7,7 @@ CORS(app)
 
 @app.route('/')
 def home():
-    return "<h1>RACK FF YT API IS ONLINE</h1>"
+    return "<body style='background:#000;color:#f00;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;'><h1>RACK FF YT | API v10 LIVE</h1></body>"
 
 @app.route('/download')
 def download():
@@ -16,32 +16,44 @@ def download():
         return jsonify({"success": False, "error": "No URL provided"}), 400
     
     try:
-        # Cobalt API Request
+        # Nayi Cobalt v10 API URL aur Data
+        cobalt_v10 = "https://api.cobalt.tools/api/json"
         payload = {
             "url": video_url,
             "videoQuality": "720",
-            "audioFormat": "mp3",
-            "downloadMode": "default"
+            "filenamePattern": "basic"
         }
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0"
         }
         
-        r = requests.post("https://api.cobalt.tools/api/json", json=payload, headers=headers)
+        r = requests.post(cobalt_v10, json=payload, headers=headers)
         data = r.json()
         
-        # Checking for the download link
-        final_url = data.get('url')
-        
-        if final_url:
+        # v10 mein status 'stream' ya 'redirect' hota hai
+        if data.get('status') == 'stream' or data.get('status') == 'redirect':
             return jsonify({
                 "success": True,
-                "video_url": final_url,
+                "video_url": data.get('url'),
+                "owner": "RACK FF YT"
+            })
+        elif data.get('status') == 'picker':
+            # Agar multiple qualities milein
+            return jsonify({
+                "success": True,
+                "video_url": data.get('picker')[0].get('url'),
                 "owner": "RACK FF YT"
             })
         else:
-            return jsonify({"success": False, "error": "Could not find stream URL", "details": data}), 400
+            return jsonify({
+                "success": False, 
+                "error": data.get('text', 'API Error'),
+                "full_response": data
+            }), 400
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+app.debug = True
