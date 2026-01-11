@@ -5,13 +5,11 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-# --- BRANDING ---
 DEV_NAME = "RACK FF YT"
-YT_LINK = "https://youtube.com/@rackff7"
 
 @app.route('/')
 def home():
-    return f"<h1>{DEV_NAME} API IS LIVE</h1><p>Send GET request to /download?url=YOUR_URL</p>"
+    return f"<body style='background:#000;color:#0f0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;'><h1>{DEV_NAME} API IS ONLINE</h1></body>"
 
 @app.route('/download')
 def download():
@@ -19,50 +17,34 @@ def download():
     if not video_url:
         return jsonify({"success": False, "error": "No URL provided"}), 400
     
-    # Hum Cobalt API ka use karenge jo YouTube block nahi karta
-    cobalt_api = "https://api.cobalt.tools/api/json"
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "url": video_url,
-        "videoQuality": "720", # 720p quality
-        "filenamePattern": "basic"
-    }
-
     try:
-        response = requests.post(cobalt_api, json=data, headers=headers)
-        res_data = response.json()
+        # Cobalt API Request
+        response = requests.post(
+            "https://api.cobalt.tools/api/json",
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            json={"url": video_url, "videoQuality": "720"}
+        )
         
-        if res_data.get('status') == 'stream' or res_data.get('status') == 'picker':
-            # Agar 'picker' hai toh pehla link le lo, agar 'stream' hai toh direct link
-            final_url = res_data.get('url')
+        data = response.json()
+        
+        # Cobalt returns 'url' directly if it's a single video
+        # or 'picker' if there are multiple options
+        final_link = data.get('url') or (data.get('picker')[0].get('url') if data.get('picker') else None)
+
+        if final_link:
             return jsonify({
-                "success": True, 
-                "video_url": final_url,
-                "title": "Video Download Ready",
+                "success": True,
+                "video_url": final_link,
                 "owner": DEV_NAME
             })
         else:
-            return jsonify({"success": False, "error": "Could not extract link"}), 500
-            
+            return jsonify({"success": False, "error": "Link extraction failed"}), 500
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-app.debug = True@app.route('/download')
-def download():
-    video_url = request.args.get('url')
-    if not video_url:
-        return jsonify({"success": False, "error": "No URL provided"}), 400
-    
-    ydl_opts = {
-        'format': 'best',
-        'quiet': True,
-        'no_warnings': True,
-        'nocheckcertificate': True
-    }
-    
+# Required for Vercel
+app.debug = True    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
