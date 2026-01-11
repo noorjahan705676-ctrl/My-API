@@ -1,14 +1,14 @@
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
-import requests
-import re
+import yt_dlp
+import os
 
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/')
 def home():
-    return "<body style='background:#000;color:#ff0055;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;text-align:center;'><div><h1>RACK FF YT | API V4.0</h1><p>ENGINE: FAST-STREAM ACTIVE</p></div></body>"
+    return "<body style='background:#000;color:#0f0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;'><h1>RACK FF YT | YT-DLP ENGINE LIVE</h1></body>"
 
 @app.route('/download')
 def download():
@@ -16,25 +16,35 @@ def download():
     if not video_url:
         return jsonify({"success": False, "error": "No URL provided"}), 400
     
+    # Termux wala yt-dlp configuration
+    ydl_opts = {
+        'format': 'best',
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'no_cache_dir': True,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    
     try:
-        # Using a very stable proxy-based extraction service
-        api_url = "https://api.savefrom.net/api/endpoint" # Logic representation
-        # Actual working bypass for 2025/26:
-        backend_url = f"https://savetube.me/api/v1/info?url={video_url}"
-        
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json"
-        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Extracting information like Termux
+            info = ydl.extract_info(video_url, download=False)
+            video_link = info.get('url')
+            
+            if video_link:
+                return jsonify({
+                    "success": True, 
+                    "video_url": video_link,
+                    "title": info.get('title'),
+                    "owner": "RACK FF YT"
+                })
+            else:
+                return jsonify({"success": False, "error": "Could not fetch direct link"}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-        r = requests.get(backend_url, headers=headers, timeout=15)
-        res = r.json()
-
-        if res.get('status') == True or res.get('success') == True:
-            # Finding the best quality link
-            formats = res.get('data', {}).get('video_formats', [])
-            if not formats:
-                formats = res.get('data', {}).get('formats', [])
+app.debug = True                formats = res.get('data', {}).get('formats', [])
             
             # Get the first working URL
             download_link = formats[0].get('url')
