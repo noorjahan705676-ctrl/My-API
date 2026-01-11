@@ -7,7 +7,7 @@ CORS(app)
 
 @app.route('/')
 def home():
-    return "<body style='background:#000;color:#f00;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;'><h1>RACK FF YT | API v10 LIVE</h1></body>"
+    return "<body style='background:#000;color:#0f0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;text-align:center;'><div><h1>RACK FF YT | API v2.0</h1><p>STATUS: ONLINE</p></div></body>"
 
 @app.route('/download')
 def download():
@@ -16,42 +16,27 @@ def download():
         return jsonify({"success": False, "error": "No URL provided"}), 400
     
     try:
-        # Nayi Cobalt v10 API URL aur Data
-        cobalt_v10 = "https://api.cobalt.tools/api/json"
-        payload = {
-            "url": video_url,
-            "videoQuality": "720",
-            "filenamePattern": "basic"
-        }
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0"
-        }
+        # Using a much more stable API bypass
+        # Ye API direct video info nikalne ke liye design ki gayi hai
+        api_url = f"https://api.vkrdown.com/api/index.php?url={video_url}"
         
-        r = requests.post(cobalt_v10, json=payload, headers=headers)
-        data = r.json()
+        response = requests.get(api_url)
+        data = response.json()
         
-        # v10 mein status 'stream' ya 'redirect' hota hai
-        if data.get('status') == 'stream' or data.get('status') == 'redirect':
+        # Check if we got the data
+        if data.get('status') == 'success' or 'data' in data:
+            # Different APIs have different formats, finding the best link
+            video_info = data.get('data', {})
+            download_url = video_info.get('url') or video_info.get('main_url')
+            
             return jsonify({
                 "success": True,
-                "video_url": data.get('url'),
-                "owner": "RACK FF YT"
-            })
-        elif data.get('status') == 'picker':
-            # Agar multiple qualities milein
-            return jsonify({
-                "success": True,
-                "video_url": data.get('picker')[0].get('url'),
+                "video_url": download_url,
+                "title": video_info.get('title', 'Video Download'),
                 "owner": "RACK FF YT"
             })
         else:
-            return jsonify({
-                "success": False, 
-                "error": data.get('text', 'API Error'),
-                "full_response": data
-            }), 400
+            return jsonify({"success": False, "error": "Extraction Failed", "details": data}), 400
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
