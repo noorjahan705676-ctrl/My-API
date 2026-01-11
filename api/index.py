@@ -7,7 +7,7 @@ CORS(app)
 
 @app.route('/')
 def home():
-    return "<body style='background:#000;color:#0f0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;text-align:center;'><div><h1>RACK FF YT | API v2.0</h1><p>STATUS: ONLINE</p></div></body>"
+    return "<body style='background:#000;color:#0ff;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;text-align:center;'><div><h1>RACK FF YT | ULTRA API V3</h1><p>STATUS: ACTIVE (INVIDIOUS CORE)</p></div></body>"
 
 @app.route('/download')
 def download():
@@ -15,30 +15,42 @@ def download():
     if not video_url:
         return jsonify({"success": False, "error": "No URL provided"}), 400
     
-    try:
-        # Using a much more stable API bypass
-        # Ye API direct video info nikalne ke liye design ki gayi hai
-        api_url = f"https://api.vkrdown.com/api/index.php?url={video_url}"
-        
-        response = requests.get(api_url)
-        data = response.json()
-        
-        # Check if we got the data
-        if data.get('status') == 'success' or 'data' in data:
-            # Different APIs have different formats, finding the best link
-            video_info = data.get('data', {})
-            download_url = video_info.get('url') or video_info.get('main_url')
-            
-            return jsonify({
-                "success": True,
-                "video_url": download_url,
-                "title": video_info.get('title', 'Video Download'),
-                "owner": "RACK FF YT"
-            })
-        else:
-            return jsonify({"success": False, "error": "Extraction Failed", "details": data}), 400
+    # Extract Video ID
+    video_id = ""
+    if "youtu.be/" in video_url:
+        video_id = video_url.split("youtu.be/")[1].split("?")[0]
+    elif "v=" in video_url:
+        video_id = video_url.split("v=")[1].split("&")[0]
+    else:
+        video_id = video_url.split("/")[-1].split("?")[0]
 
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    # Invidious Instances (Agar ek down ho toh dusra kaam kare)
+    instances = [
+        "https://invidious.snopyta.org",
+        "https://yewtu.be",
+        "https://invidious.kavin.rocks"
+    ]
+
+    for instance in instances:
+        try:
+            api_url = f"{instance}/api/v1/videos/{video_id}"
+            r = requests.get(api_url, timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                # Sabse best quality wala format dhundna
+                formats = data.get('formatStreams', [])
+                if formats:
+                    # Sabse upar wala (best) format le lo
+                    best_video = formats[0].get('url')
+                    return jsonify({
+                        "success": True,
+                        "video_url": best_video,
+                        "title": data.get('title'),
+                        "owner": "RACK FF YT"
+                    })
+        except:
+            continue
+
+    return jsonify({"success": False, "error": "All backup servers are busy. Try again in 1 min."}), 500
 
 app.debug = True
